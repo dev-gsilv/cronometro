@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cronômetro de Estudos Minimalista</title>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #333333;
+            --accent-color: #2c3e50;
+            --light-gray: #f4f4f4;
+            --border-radius: 8px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            text-align: center;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        /* Input da Matéria */
+        .subject-input {
+            font-size: 1.2rem;
+            padding: 10px;
+            border: none;
+            border-bottom: 2px solid var(--light-gray);
+            outline: none;
+            text-align: center;
+            width: 100%;
+            margin-bottom: 20px;
+            transition: border-color 0.3s;
+        }
+
+        .subject-input:focus {
+            border-bottom-color: var(--accent-color);
+        }
+
+        /* O Timer (HH:MM) */
+        .timer-display {
+            font-size: 6rem;
+            font-weight: 300;
+            letter-spacing: -2px;
+            margin: 20px 0;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .seconds-indicator {
+            font-size: 1rem;
+            color: #ccc;
+            opacity: 0; /* Escondido conforme pedido, mas existe na lógica */
+        }
+
+        /* Botões */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 40px;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1rem;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: opacity 0.2s;
+            font-weight: 600;
+        }
+
+        button:hover {
+            opacity: 0.8;
+        }
+
+        .btn-start { background-color: #27ae60; color: white; }
+        .btn-pause { background-color: #f39c12; color: white; }
+        .btn-stop { background-color: #c0392b; color: white; }
+        
+        button:disabled {
+            background-color: #e0e0e0;
+            cursor: not-allowed;
+            color: #999;
+        }
+
+        /* Tabela de Histórico */
+        .history-section {
+            width: 100%;
+            text-align: left;
+            border-top: 1px solid var(--light-gray);
+            padding-top: 20px;
+        }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            padding: 8px;
+            border-bottom: 1px solid var(--light-gray);
+            text-align: left;
+        }
+
+        th { font-weight: 600; color: #777; }
+        
+        /* Instrução Notion */
+        .notion-hint {
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 10px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <input type="text" id="subject" class="subject-input" placeholder="O que você vai estudar?" autocomplete="off">
+
+        <div class="timer-display" id="display">00:00</div>
+
+        <div class="controls">
+            <button id="btnStart" class="btn-start" onclick="startTimer()">Iniciar</button>
+            <button id="btnPause" class="btn-pause" onclick="pauseTimer()" disabled>Pausar</button>
+            <button id="btnStop" class="btn-stop" onclick="stopTimer()" disabled>Parar</button>
+        </div>
+
+        <div class="history-section">
+            <div class="history-header">
+                <h3>Sessões Realizadas</h3>
+            </div>
+            <table id="historyTable">
+                <thead>
+                    <tr>
+                        <th>Matéria</th>
+                        <th>Início</th>
+                        <th>Fim</th>
+                        <th>Duração</th>
+                    </tr>
+                </thead>
+                <tbody id="historyBody">
+                    </tbody>
+            </table>
+            <p class="notion-hint">Dica: Selecione as linhas da tabela acima, copie e cole diretamente no Notion.</p>
+        </div>
+    </div>
+
+    <script>
+        let timerInterval;
+        let startTime;
+        let elapsedBeforePause = 0;
+        let isRunning = false;
+        let sessionStartDate = null;
+
+        const display = document.getElementById('display');
+        const subjectInput = document.getElementById('subject');
+        const btnStart = document.getElementById('btnStart');
+        const btnPause = document.getElementById('btnPause');
+        const btnStop = document.getElementById('btnStop');
+        const historyBody = document.getElementById('historyBody');
+
+        function formatTime(ms) {
+            const totalSeconds = Math.floor(ms / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            
+            // Formatação HH:MM
+            const hDisplay = String(hours).padStart(2, '0');
+            const mDisplay = String(minutes).padStart(2, '0');
+            
+            return `${hDisplay}:${mDisplay}`;
+        }
+
+        function formatFullTime(ms) {
+            // Formato detalhado HH:MM:SS para o registro histórico (opcional, mantendo precisão)
+            const totalSeconds = Math.floor(ms / 1000);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function getCurrentDateTime() {
+            const now = new Date();
+            // Formato compatível com Notion (DD/MM/YYYY HH:mm)
+            return now.toLocaleString('pt-BR', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+        }
+
+        function updateDisplay() {
+            const now = Date.now();
+            const timePassed = now - startTime + elapsedBeforePause;
+            display.textContent = formatTime(timePassed);
+        }
+
+        function startTimer() {
+            if (isRunning) return;
+
+            if (!sessionStartDate) {
+                sessionStartDate = getCurrentDateTime(); // Marca o início real da sessão
+            }
+
+            startTime = Date.now();
+            timerInterval = setInterval(updateDisplay, 1000); // Atualiza a cada segundo
+            isRunning = true;
+
+            toggleButtons(true);
+        }
+
+        function pauseTimer() {
+            if (!isRunning) return;
+            
+            clearInterval(timerInterval);
+            elapsedBeforePause += Date.now() - startTime;
+            isRunning = false;
+
+            btnStart.textContent = "Retomar";
+            toggleButtons(false);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            
+            let finalDuration = 0;
+            if (isRunning) {
+                finalDuration = elapsedBeforePause + (Date.now() - startTime);
+            } else {
+                finalDuration = elapsedBeforePause;
+            }
+
+            // Registrar no Histórico
+            addHistoryRow(finalDuration);
+
+            // Resetar tudo
+            isRunning = false;
+            elapsedBeforePause = 0;
+            sessionStartDate = null;
+            display.textContent = "00:00";
+            subjectInput.value = ""; // Limpa a matéria para a próxima
+            btnStart.textContent = "Iniciar";
+            
+            // Estado dos botões
+            btnStart.disabled = false;
+            btnPause.disabled = true;
+            btnStop.disabled = true;
+        }
+
+        function toggleButtons(running) {
+            btnStart.disabled = running;
+            btnPause.disabled = !running;
+            btnStop.disabled = false; // Stop sempre ativo se começou
+        }
+
+        function addHistoryRow(durationMs) {
+            const row = document.createElement('tr');
+            
+            // Dados
+            const subject = subjectInput.value.trim() || "Sem categoria";
+            const start = sessionStartDate;
+            const end = getCurrentDateTime();
+            const duration = formatFullTime(durationMs); // Usa formato completo no histórico ou HH:MM se preferir
+
+            row.innerHTML = `
+                <td>${subject}</td>
+                <td>${start}</td>
+                <td>${end}</td>
+                <td>${duration}</td>
+            `;
+
+            // Adiciona no topo da tabela
+            historyBody.insertBefore(row, historyBody.firstChild);
+        }
+    </script>
+</body>
+</html>
