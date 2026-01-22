@@ -3,14 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cronômetro de Estudos Minimalista</title>
+    <title>Cronômetro Notion</title>
     <style>
         :root {
-            --bg-color: #ffffff;
+            /* Fundo transparente para mesclar com o Notion */
+            --bg-color: transparent; 
             --text-color: #333333;
             --accent-color: #2c3e50;
-            --light-gray: #f4f4f4;
+            --border-color: #e0e0e0;
+            --light-gray: rgba(0, 0, 0, 0.05);
             --border-radius: 8px;
+        }
+
+        /* Suporte automático para Modo Escuro (Dark Mode) */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-color: #eeeeee;
+                --accent-color: #ecf0f1;
+                --border-color: #444444;
+                --light-gray: rgba(255, 255, 255, 0.1);
+            }
         }
 
         body {
@@ -23,20 +35,25 @@
             justify-content: center;
             min-height: 100vh;
             margin: 0;
+            /* Remove scrollbar padrão se não necessário */
+            overflow-y: auto;
         }
 
         .container {
             text-align: center;
             width: 90%;
-            max-width: 500px;
+            max-width: 600px;
+            padding: 20px 0;
         }
 
         /* Input da Matéria */
         .subject-input {
             font-size: 1.2rem;
             padding: 10px;
+            background: transparent;
+            color: var(--text-color);
             border: none;
-            border-bottom: 2px solid var(--light-gray);
+            border-bottom: 2px solid var(--border-color);
             outline: none;
             text-align: center;
             width: 100%;
@@ -48,19 +65,19 @@
             border-bottom-color: var(--accent-color);
         }
 
-        /* O Timer (HH:MM) */
-        .timer-display {
-            font-size: 6rem;
-            font-weight: 300;
-            letter-spacing: -2px;
-            margin: 20px 0;
-            font-variant-numeric: tabular-nums;
+        .subject-input::placeholder {
+            color: var(--text-color);
+            opacity: 0.5;
         }
 
-        .seconds-indicator {
-            font-size: 1rem;
-            color: #ccc;
-            opacity: 0; /* Escondido conforme pedido, mas existe na lógica */
+        /* O Timer (HH:MM) */
+        .timer-display {
+            font-size: 5rem;
+            font-weight: 300;
+            letter-spacing: -2px;
+            margin: 10px 0 30px 0;
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
         }
 
         /* Botões */
@@ -72,17 +89,18 @@
         }
 
         button {
-            padding: 12px 24px;
-            font-size: 1rem;
+            padding: 10px 20px;
+            font-size: 0.95rem;
             border: none;
             border-radius: var(--border-radius);
             cursor: pointer;
-            transition: opacity 0.2s;
+            transition: transform 0.1s, opacity 0.2s;
             font-weight: 600;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
-        button:hover {
-            opacity: 0.8;
+        button:active {
+            transform: scale(0.98);
         }
 
         .btn-start { background-color: #27ae60; color: white; }
@@ -90,79 +108,79 @@
         .btn-stop { background-color: #c0392b; color: white; }
         
         button:disabled {
-            background-color: #e0e0e0;
+            background-color: var(--border-color);
             cursor: not-allowed;
-            color: #999;
+            color: #888;
+            box-shadow: none;
         }
 
         /* Tabela de Histórico */
         .history-section {
             width: 100%;
             text-align: left;
-            border-top: 1px solid var(--light-gray);
+            border-top: 1px solid var(--border-color);
             padding-top: 20px;
-        }
-
-        .history-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
 
         th, td {
             padding: 8px;
-            border-bottom: 1px solid var(--light-gray);
+            border-bottom: 1px solid var(--border-color);
             text-align: left;
         }
 
-        th { font-weight: 600; color: #777; }
+        th { 
+            font-weight: 600; 
+            opacity: 0.7;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+        }
+
+        tr:hover {
+            background-color: var(--light-gray);
+        }
         
-        /* Instrução Notion */
         .notion-hint {
-            font-size: 0.8rem;
-            color: #888;
-            margin-top: 10px;
+            font-size: 0.75rem;
+            opacity: 0.6;
+            margin-top: 15px;
             font-style: italic;
+            text-align: center;
         }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <input type="text" id="subject" class="subject-input" placeholder="O que você vai estudar?" autocomplete="off">
+        <input type="text" id="subject" class="subject-input" placeholder="Matéria / Assunto" autocomplete="off">
 
         <div class="timer-display" id="display">00:00</div>
 
         <div class="controls">
             <button id="btnStart" class="btn-start" onclick="startTimer()">Iniciar</button>
             <button id="btnPause" class="btn-pause" onclick="pauseTimer()" disabled>Pausar</button>
-            <button id="btnStop" class="btn-stop" onclick="stopTimer()" disabled>Parar</button>
+            <button id="btnStop" class="btn-stop" onclick="stopTimer()" disabled>Parar & Salvar</button>
         </div>
 
-        <div class="history-section">
-            <div class="history-header">
-                <h3>Sessões Realizadas</h3>
-            </div>
+        <div class="history-section" id="historySection" style="display:none;">
             <table id="historyTable">
                 <thead>
                     <tr>
                         <th>Matéria</th>
                         <th>Início</th>
-                        <th>Fim</th>
                         <th>Duração</th>
+                        <th>Total Acumulado</th>
                     </tr>
                 </thead>
                 <tbody id="historyBody">
                     </tbody>
             </table>
-            <p class="notion-hint">Dica: Selecione as linhas da tabela acima, copie e cole diretamente no Notion.</p>
+            <p class="notion-hint">Copie a tabela acima e cole no Notion.</p>
         </div>
     </div>
 
@@ -172,6 +190,7 @@
         let elapsedBeforePause = 0;
         let isRunning = false;
         let sessionStartDate = null;
+        let totalAccumulatedTimeMs = 0; // Variável para guardar o total do dia
 
         const display = document.getElementById('display');
         const subjectInput = document.getElementById('subject');
@@ -179,21 +198,22 @@
         const btnPause = document.getElementById('btnPause');
         const btnStop = document.getElementById('btnStop');
         const historyBody = document.getElementById('historyBody');
+        const historySection = document.getElementById('historySection');
 
-        function formatTime(ms) {
+        // Formata apenas HH:MM para o display principal
+        function formatDisplayTime(ms) {
             const totalSeconds = Math.floor(ms / 1000);
             const hours = Math.floor(totalSeconds / 3600);
             const minutes = Math.floor((totalSeconds % 3600) / 60);
             
-            // Formatação HH:MM
             const hDisplay = String(hours).padStart(2, '0');
             const mDisplay = String(minutes).padStart(2, '0');
             
             return `${hDisplay}:${mDisplay}`;
         }
 
+        // Formata HH:MM:SS para a tabela (maior precisão no log)
         function formatFullTime(ms) {
-            // Formato detalhado HH:MM:SS para o registro histórico (opcional, mantendo precisão)
             const totalSeconds = Math.floor(ms / 1000);
             const hours = Math.floor(totalSeconds / 3600);
             const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -203,7 +223,6 @@
 
         function getCurrentDateTime() {
             const now = new Date();
-            // Formato compatível com Notion (DD/MM/YYYY HH:mm)
             return now.toLocaleString('pt-BR', {
                 day: '2-digit', month: '2-digit', year: 'numeric',
                 hour: '2-digit', minute: '2-digit'
@@ -213,18 +232,18 @@
         function updateDisplay() {
             const now = Date.now();
             const timePassed = now - startTime + elapsedBeforePause;
-            display.textContent = formatTime(timePassed);
+            display.textContent = formatDisplayTime(timePassed);
         }
 
         function startTimer() {
             if (isRunning) return;
 
             if (!sessionStartDate) {
-                sessionStartDate = getCurrentDateTime(); // Marca o início real da sessão
+                sessionStartDate = getCurrentDateTime(); 
             }
 
             startTime = Date.now();
-            timerInterval = setInterval(updateDisplay, 1000); // Atualiza a cada segundo
+            timerInterval = setInterval(updateDisplay, 1000); 
             isRunning = true;
 
             toggleButtons(true);
@@ -251,43 +270,49 @@
                 finalDuration = elapsedBeforePause;
             }
 
-            // Registrar no Histórico
-            addHistoryRow(finalDuration);
+            // Atualiza o total acumulado
+            totalAccumulatedTimeMs += finalDuration;
 
-            // Resetar tudo
+            // Registrar no Histórico
+            addHistoryRow(finalDuration, totalAccumulatedTimeMs);
+
+            // Resetar sessão atual
             isRunning = false;
             elapsedBeforePause = 0;
             sessionStartDate = null;
             display.textContent = "00:00";
-            subjectInput.value = ""; // Limpa a matéria para a próxima
+            subjectInput.value = ""; 
             btnStart.textContent = "Iniciar";
             
-            // Estado dos botões
-            btnStart.disabled = false;
-            btnPause.disabled = true;
+            toggleButtons(false);
             btnStop.disabled = true;
+            btnStart.disabled = false;
         }
 
         function toggleButtons(running) {
             btnStart.disabled = running;
             btnPause.disabled = !running;
-            btnStop.disabled = false; // Stop sempre ativo se começou
+            btnStop.disabled = false;
         }
 
-        function addHistoryRow(durationMs) {
+        function addHistoryRow(durationMs, totalMs) {
+            // Mostra a tabela se for a primeira vez
+            if (historySection.style.display === 'none') {
+                historySection.style.display = 'block';
+            }
+
             const row = document.createElement('tr');
             
-            // Dados
-            const subject = subjectInput.value.trim() || "Sem categoria";
+            const subject = subjectInput.value.trim() || "Estudo Geral";
             const start = sessionStartDate;
-            const end = getCurrentDateTime();
-            const duration = formatFullTime(durationMs); // Usa formato completo no histórico ou HH:MM se preferir
+            const duration = formatFullTime(durationMs);
+            const total = formatFullTime(totalMs);
 
             row.innerHTML = `
                 <td>${subject}</td>
                 <td>${start}</td>
-                <td>${end}</td>
                 <td>${duration}</td>
+                <td style="font-weight:bold;">${total}</td>
             `;
 
             // Adiciona no topo da tabela
